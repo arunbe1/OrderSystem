@@ -217,7 +217,7 @@ public class OrderControllerTest {
 	@Test
 	public void testValidOrderNotExists() throws JsonProcessingException {
 		
-		String getOrder_URL = "/order/findOrderById?orderId=5";
+		String getOrder_URL = "/order/findOrderById?orderId=10";
 		String orderJson = objectMapper.writeValueAsString(new Orders());
 		
 		stubFor(get(urlEqualTo(getOrder_URL))

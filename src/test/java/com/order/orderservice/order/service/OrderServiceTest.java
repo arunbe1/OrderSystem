@@ -12,9 +12,11 @@ import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.web.client.RestTemplate;
 
 import com.order.orderservice.models.Order;
@@ -29,6 +31,7 @@ public class OrderServiceTest {
 	
 	private static RestTemplate mockRestTemplate;
 	
+
 	private static OrderServiceImpl orderService;
 	
 	private static Orders actualOrders;
@@ -60,6 +63,8 @@ public class OrderServiceTest {
 		List<OrderDetails> lsOrderDetails = new ArrayList<>();
 		lsOrderDetails.add(orderDetails);
 		actualOrders.setOrderDetails(lsOrderDetails);
+		
+		orderService = Mockito.mock(OrderServiceImpl.class);
 	}
 
 	
@@ -68,8 +73,8 @@ public class OrderServiceTest {
 		try {
 			when(orderService.addOrder(actualOrders)).thenReturn(actualOrders);
 			Orders resultOrders = orderService.addOrder(actualOrders);
-			assertThat(actualOrders.getOrder()).equals(resultOrders.getOrder());
-			assertThat(actualOrders.getOrderDetails()).equals(resultOrders.getOrderDetails());
+			assertThat(actualOrders.getOrder()).isEqualTo(resultOrders.getOrder());
+			assertThat(actualOrders.getOrderDetails()).isEqualTo(resultOrders.getOrderDetails());
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			logger.error("Add order test case failed:{}", e.getMessage());
@@ -82,8 +87,9 @@ public class OrderServiceTest {
 		try {
 			when(orderService.getOrderDetails(1)).thenReturn(actualOrders);
 			Orders resultOrder = orderService.getOrderDetails(1);
-			assertThat(actualOrders.getOrder()).equals(resultOrder.getOrder());
-			assertThat(actualOrders.getOrderDetails()).equals(resultOrder.getOrderDetails());
+			assertThat(actualOrders.getOrder()).isEqualTo(resultOrder.getOrder());
+			assertThat(actualOrders.getOrderDetails()).isEqualTo(resultOrder.getOrderDetails());
+			assertThat(actualOrders.getOrderDetails().get(0).getTotalValue()).isEqualTo(resultOrder.getOrderDetails().get(0).getTotalValue());
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			logger.error("Get valid order test case failed:{}", e.getMessage());
@@ -109,11 +115,11 @@ public class OrderServiceTest {
 			when(orderService.getAllOrders()).thenReturn(lsActualOrders);
 			Iterable<Orders> resultOrder = orderService.getAllOrders();
 			for(Orders orders: resultOrder) {
-				assertThat(actualOrders.getOrder()).equals(orders.getOrder());
-				assertThat(actualOrders.getOrderDetails()).equals(orders.getOrderDetails());
+				assertThat(actualOrders.getOrder()).isEqualTo(orders.getOrder());
+				assertThat(actualOrders.getOrderDetails()).isEqualTo(orders.getOrderDetails());
+				assertThat(actualOrders.getOrderDetails().get(0).getTotalValue()).isEqualTo(orders.getOrderDetails().get(0).getTotalValue());
 			}
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			logger.error("Get valid order test case failed:{}", e.getMessage());
 		}
 	}

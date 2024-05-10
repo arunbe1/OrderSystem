@@ -20,35 +20,32 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name="items")
-public class Item {
+@Table(name="offers")
+public class Offers {
 	
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	@Column(name="item_code", updatable = false, nullable = false)
-	private Integer itemId;
+	@Column(name="offer_id", updatable = false, nullable = false)
+	private Integer offerId;
 	
-	@Column(name="item_name",  nullable = false)
-	private String itemName;
+	@Column(name="offer_details", updatable = false, nullable = false)
+	private String offer_details;
 	
-	@Column(name="item_description")
-	private String itemDescription;
-	
-	
-	@Column(name="item_price")
-	private BigDecimal itemValue;
-	
-	@Column(name="created_ts")
-	private Timestamp createdTimeStamp;
+	@Column(name="offer_type", updatable = false, nullable = false)
+	private String offerType;
 	
 	@Column(name="created_by")
 	private String createdBy;
 	
-	@Column(name="is_available")
-	private Boolean isAvailable;
+	@Column(name="created_ts")
+	private Timestamp createdTimeStamp;
 	
-	@Column(name="offer_id")
-	public Integer offerId;
+	@Column(name="start_date")
+	private Timestamp startDate;
+	
+	@Column(name="end_date")
+	private Timestamp endDate;
+	
 	
 	@PrePersist
 	protected void onCreate() {
@@ -56,5 +53,6 @@ public class Item {
 		Timestamp temp = new Timestamp(now.getTime());
 		createdTimeStamp = temp;
 	}
-
+	
+	
 }

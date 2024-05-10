@@ -14,6 +14,7 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -47,13 +48,16 @@ public class ItemServiceTests {
 		Timestamp temp = new Timestamp(now.getTime());
 		actualItem.setCreatedTimeStamp(temp);
 		actualItem.setIsAvailable(true);
-
+		// Mocking the service class to avoid creating records in database
+		itemService = Mockito.mock(ItemServiceImpl.class);
 		
 	}
 	
 	@Test
 	public void addItem() {
 		try {
+			
+
 			when(itemService.addItem(actualItem)).thenReturn(actualItem);
 			Item resultItem = itemService.addItem(actualItem);
 			assertThat(actualItem.getItemId()).isEqualTo(resultItem.getItemId());

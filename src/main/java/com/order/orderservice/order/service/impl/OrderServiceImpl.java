@@ -13,15 +13,19 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 
 import com.order.orderservice.item.repository.ItemRepository;
 import com.order.orderservice.models.Item;
+import com.order.orderservice.models.Offers;
 import com.order.orderservice.models.Order;
 import com.order.orderservice.models.OrderDetails;
 import com.order.orderservice.models.Orders;
+import com.order.orderservice.offer.repository.OfferRepository;
 import com.order.orderservice.order.repository.OrderDetailsRepo;
 import com.order.orderservice.order.repository.OrdersRepo;
 import com.order.orderservice.order.service.OrderService;
+import com.order.orderservice.util.OrderServiceUtil;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -39,6 +43,9 @@ public class OrderServiceImpl implements OrderService {
 	
 	@Autowired
 	private ItemRepository itemRepo;
+	
+	@Autowired
+	private OfferRepository offersRepo;
 
 	
     /*
@@ -86,6 +93,8 @@ public class OrderServiceImpl implements OrderService {
 		
 		Optional<Order> order = ordersRepo.findById(orderId);
 		List<OrderDetails> lsOrderDetails = new ArrayList<>();
+		BigDecimal totalValue = BigDecimal.ZERO;
+		BigDecimal totalOrderValue = BigDecimal.ZERO;
 		Orders orders = new Orders();
 		if(order.isPresent()) {
 			orders.setOrder(order.get());
@@ -96,11 +105,31 @@ public class OrderServiceImpl implements OrderService {
 			if(optItem.isPresent()) {
 				Item item = optItem.get();
 				orderDet.setItemName(item.getItemName());
-				orderDet.setTotalValue(item.getItemValue().multiply(BigDecimal.valueOf(orderDet.getQuantity())));
+				Integer offerId = item.getOfferId();
+				// Offer present then calculate the total value using offer
+				if(!ObjectUtils.isEmpty(offerId)) {
+				Optional<Offers> offers = offersRepo.findById(offerId);
+					if(offers.isPresent()) {
+						Offers offer = offers.get();
+						if(Objects.nonNull(offer.getOffer_details())) {
+							totalValue = OrderServiceUtil.calculateProductAmount(offer.getOffer_details(), orderDet.getQuantity(), item.getItemValue());
+						} else {
+							totalValue = item.getItemValue().multiply(BigDecimal.valueOf(orderDet.getQuantity()));
+						}
+					} 
+					// Offer not present then calculate the total value directly
+				} else {
+					totalValue = item.getItemValue().multiply(BigDecimal.valueOf(orderDet.getQuantity()));
+				}
+				totalOrderValue = totalOrderValue.add(totalValue);
+				orderDet.setTotalValue(totalValue);
 				lsOrderDetails.add(orderDet);
 			}
 		}
 		orders.setOrderDetails(lsOrderDetails);
+		if(Objects.nonNull(orders.getOrder())) {
+			orders.getOrder().setOrderAmount(totalOrderValue);
+		}
 		return orders;
 	}
 
@@ -114,7 +143,7 @@ public class OrderServiceImpl implements OrderService {
 	public Iterable<Orders> getAllOrders() throws Exception {
 		Iterable<Order> allOrders = ordersRepo.findAll();
 		List<Orders> lsOrder = new ArrayList<>();
-		
+		BigDecimal totalValue = BigDecimal.ZERO;
 		for(Order order: allOrders) {
 			Orders orders = new Orders();
 			List<OrderDetails> lsOrderDetails = new ArrayList<>();
@@ -124,9 +153,26 @@ public class OrderServiceImpl implements OrderService {
 				if(optItem.isPresent()) {
 					Item item = optItem.get();
 					orderDet.setItemName(item.getItemName());
-					orderDet.setTotalValue(item.getItemValue().multiply(BigDecimal.valueOf(orderDet.getQuantity())));
-					lsOrderDetails.add(orderDet);
+					Integer offerId = item.getOfferId();
+					// Offer present then calculate the total value using offer
+					if(!ObjectUtils.isEmpty(offerId)) {
+					Optional<Offers> offers = offersRepo.findById(offerId);
+						if(offers.isPresent()) {
+							Offers offer = offers.get();
+							if(Objects.nonNull(offer.getOffer_details())) {
+								totalValue = OrderServiceUtil.calculateProductAmount(offer.getOffer_details(), orderDet.getQuantity(), item.getItemValue());
+							} else {
+								totalValue = item.getItemValue().multiply(BigDecimal.valueOf(orderDet.getQuantity()));
+							}
+						} 
+						// Offer not present then calculate the total value directly
+					} else {
+						totalValue = item.getItemValue().multiply(BigDecimal.valueOf(orderDet.getQuantity()));
 					}
+					
+					orderDet.setTotalValue(totalValue);
+					lsOrderDetails.add(orderDet);
+				}
 			}
 			orders.setOrder(order);
 			orders.setOrderDetails(lsOrderDetails);
