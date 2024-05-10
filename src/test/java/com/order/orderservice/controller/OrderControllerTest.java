@@ -1,59 +1,61 @@
 package com.order.orderservice.controller;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
-import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
-import static com.github.tomakehurst.wiremock.client.WireMock.get;
-import static com.github.tomakehurst.wiremock.client.WireMock.post;
-import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import java.io.IOException;
-import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.result.JsonPathResultMatchers;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.tomakehurst.wiremock.junit5.WireMockTest;
+import com.order.orderservice.item.service.impl.ItemServiceImpl;
 import com.order.orderservice.models.Item;
 import com.order.orderservice.models.Order;
 import com.order.orderservice.models.OrderDetails;
 import com.order.orderservice.models.Orders;
+import com.order.orderservice.order.service.impl.OrderServiceImpl;
 
-
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@WireMockTest(httpPort = 8081)
+@WebMvcTest(OrderController.class)
 public class OrderControllerTest {
 	
-	private static final Logger logger = LoggerFactory.getLogger(OrderControllerTest.class);
+	@MockBean
+	private OrderServiceImpl orderService;
 	
-    @Autowired
-    protected TestRestTemplate testRestTemplate;
+	@MockBean
+	private ItemServiceImpl itemService;
+	
+	@Autowired
+	private MockMvc mockMvc;
+	
+	@Autowired
+	private ObjectMapper objectMapper;
 	
 	private static Item actualItem;
 	
 	private static Orders actualOrders;
-	
-	@Autowired
-	ObjectMapper objectMapper;
 	
 	@BeforeAll
 	static void  setup() {
@@ -94,169 +96,81 @@ public class OrderControllerTest {
 	}
 	
 	@Test
-	public void addItem() throws JsonProcessingException {
-		
-		String addItem_URL = "/order/addItem";
-		String itemJson = objectMapper.writeValueAsString(actualItem);
-		
-		stubFor(post(urlEqualTo(addItem_URL))
-				.withHeader("Authorization", equalTo("Bearer foo"))
-				.withRequestBody(equalToJson(itemJson, true, true))
-				.willReturn(aResponse().withStatus(200)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody(itemJson)));
-		
-		 ResponseEntity<Item> resultItem = testRestTemplate.postForEntity(addItem_URL, actualItem, Item.class);
-		 
-		 assertThat(resultItem.getStatusCode()).isEqualTo(HttpStatus.OK);
-		 assertThat(Objects.requireNonNull(resultItem.getBody()).getItemId().equals(actualItem.getItemId()));
-		
+	void shouldCreateItem() throws Exception {
+		mockMvc.perform(post("/order/addItem").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(actualItem)))
+				.andExpect(status().isOk());
 	}
 	
-	
 	@Test
-	public void getItem() throws JsonProcessingException {
-		
-		String getItem_URL = "/order/getItem?ItemId=1";
-		String itemJson = objectMapper.writeValueAsString(actualItem);
-		
-		stubFor(get(urlEqualTo(getItem_URL))
-				.withHeader("Authorization", equalTo("Bearer foo"))
-				.willReturn(aResponse().withStatus(200)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody(itemJson)));
-		
-		 ResponseEntity<Item> resultItem = testRestTemplate.getForEntity(getItem_URL, Item.class);
-		 
-		 assertThat(resultItem.getStatusCode()).isEqualTo(HttpStatus.OK);
-		 assertThat(Objects.requireNonNull(resultItem.getBody()).getItemId().equals(actualItem.getItemId()));
+	void shouldReturnItem() throws Exception {
+		when(itemService.getItem(1)).thenReturn(actualItem);
+
+		mockMvc.perform(get("/order/getItem?ItemId=1")).andExpect(status().isOk())
+		.andExpect(jsonPath("$.itemId").value(actualItem.getItemId()))
+		.andExpect(jsonPath("$.itemName").value(actualItem.getItemName()))
+		.andExpect(jsonPath("$.itemDescription").value(actualItem.getItemDescription()))
+		.andExpect(jsonPath("$.itemValue").value(actualItem.getItemValue()));
 		
 	}
 	
 	@Test
-	public void getItemNotExists() throws JsonProcessingException {
-		
-		String getItem_URL = "/order/getItem?ItemId=5";
-		String itemJson = objectMapper.writeValueAsString(new Item());
-		
-		stubFor(get(urlEqualTo(getItem_URL))
-				.withHeader("Authorization", equalTo("Bearer foo"))
-				.willReturn(aResponse().withStatus(200)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody(itemJson)));
-		
-		 ResponseEntity<Item> resultItem = testRestTemplate.getForEntity(getItem_URL, Item.class);
-		 
-		 assertThat(resultItem.getStatusCode()).isEqualTo(HttpStatus.OK);
-		 assertNull(resultItem.getBody());
+	void shouldReturnNotFoundItem() throws Exception {
+		when(itemService.getItem(10)).thenReturn(null);
+		  mockMvc.perform(get("/order/getItem?ItemId=10")).andExpect(status().isOk())
+		.andExpect(jsonPath("$").doesNotExist());
 		
 	}
 	
-	
 	@Test
-	public void getAllItem() throws IOException {
-		
-		String getAllItem_URL = "/order/getAllItems";
+	void shouldGetAllItem() throws Exception {
 		List<Item> items = new ArrayList<>();
 		items.add(actualItem);
-		final StringWriter sw = new StringWriter();
-		objectMapper.writeValue(sw, items);
-		String itemJson = sw.toString();
-		
-		stubFor(get(urlEqualTo(getAllItem_URL))
-				.withHeader("Authorization", equalTo("Bearer foo"))
-				.willReturn(aResponse().withStatus(200)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody(itemJson)));
-		
-		 ResponseEntity<Item[]> resultItem = testRestTemplate.getForEntity(getAllItem_URL, Item[].class);
-		 
-		 assertThat(resultItem.getStatusCode()).isEqualTo(HttpStatus.OK);
-		 assertThat(Objects.requireNonNull(resultItem.getBody()[0]).getItemId().equals(actualItem.getItemId()));
-		
-	}
-	
-	
-	@Test
-	public void addOrder() throws JsonProcessingException {
-		
-		String addOrder_URL = "/order/saveOrder";
-		String ordersJson = objectMapper.writeValueAsString(actualOrders);
-		
-		stubFor(post(urlEqualTo(addOrder_URL))
-				.withHeader("Authorization", equalTo("Bearer foo"))
-				.withRequestBody(equalToJson(ordersJson, true, true))
-				.willReturn(aResponse().withStatus(200)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody(ordersJson)));
-		
-		 ResponseEntity<Orders> resultOrders = testRestTemplate.postForEntity(addOrder_URL, actualOrders, Orders.class);
-		 
-		 assertThat(resultOrders.getStatusCode()).isEqualTo(HttpStatus.OK);
-		 assertThat(Objects.requireNonNull(resultOrders.getBody()).getOrder().equals(actualOrders.getOrder()));
+		when(itemService.getAllItem()).thenReturn(items);
+		  mockMvc.perform(get("/order/getAllItems")).andExpect(status().isOk())
+		.andExpect(jsonPath("$.size()").value(items.size()));
 		
 	}
 	
 	@Test
-	public void testValidOrder() throws JsonProcessingException {
-		String getOrder_URL = "/order/findOrderById?orderId=1";
-		String orderJson = objectMapper.writeValueAsString(actualOrders);
-		
-		stubFor(get(urlEqualTo(getOrder_URL))
-				.withHeader("Authorization", equalTo("Bearer foo"))
-				.willReturn(aResponse().withStatus(200)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody(orderJson)));
-		
-		 ResponseEntity<Orders> resultOrders = testRestTemplate.getForEntity(getOrder_URL, Orders.class);
-
-		 assertThat(resultOrders.getStatusCode()).isEqualTo(HttpStatus.OK);
-		 assertThat(Objects.requireNonNull(resultOrders.getBody()).getOrder().equals(actualOrders.getOrder()));
+	void shouldCreateOrder() throws Exception {
+		mockMvc.perform(post("/order/saveOrder").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(actualOrders)))
+				.andExpect(status().isOk());
 	}
 	
 	@Test
-	public void testValidOrderNotExists() throws JsonProcessingException {
-		
-		String getOrder_URL = "/order/findOrderById?orderId=10";
-		String orderJson = objectMapper.writeValueAsString(new Orders());
-		
-		stubFor(get(urlEqualTo(getOrder_URL))
-				.withHeader("Authorization", equalTo("Bearer foo"))
-				.willReturn(aResponse().withStatus(200)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody(orderJson)));
-		
-		 ResponseEntity<Orders> resultOrders = testRestTemplate.getForEntity(getOrder_URL, Orders.class);
-		 
-		 assertThat(resultOrders.getStatusCode()).isEqualTo(HttpStatus.OK);
-		 Object results = resultOrders.getBody();
-		 assertNotNull(results);
+	void shouldReturnOrder() throws Exception {
+		when(orderService.getOrderDetails(1)).thenReturn(actualOrders);
+		mockMvc.perform(get("/order/findOrderById?orderId=1")).andExpect(status().isOk())
+		.andExpect(jsonPath("$.order.orderId").value(actualOrders.getOrder().getOrderId()))
+		.andExpect(jsonPath("$.order.orderAmount").value(actualOrders.getOrder().getOrderAmount()))
+		.andExpect(jsonPath("$.orderDetails[0].orderDetailId").value(actualOrders.getOrderDetails().get(0).getOrderDetailId()))
+		.andExpect(jsonPath("$.orderDetails[0].orderId").value(actualOrders.getOrderDetails().get(0).getOrderId()))
+		.andExpect(jsonPath("$.orderDetails[0].quantity").value(actualOrders.getOrderDetails().get(0).getQuantity()))
+		.andExpect(jsonPath("$.orderDetails[0].totalValue").value(actualOrders.getOrderDetails().get(0).getTotalValue())
+				);
 		
 	}
 	
 	@Test
-	public void getAllOrders() throws IOException {
+	void shouldReturnNotFoundOrder() throws Exception {
+		when(orderService.getOrderDetails(10)).thenReturn(null);
+		  mockMvc.perform(get("/order/findOrderById?orderId=10")).andExpect(status().isOk())
+		.andExpect(jsonPath("$").doesNotExist());
 		
-		String getAllOrder_URL = "/order/findAllOrder";
+	}
+	
+	@Test
+	void shouldGetAllOrder() throws Exception {
 		List<Orders> lsOrders = new ArrayList<>();
 		lsOrders.add(actualOrders);
-		final StringWriter sw = new StringWriter();
-		objectMapper.writeValue(sw, lsOrders);
-		String ordersJson = sw.toString();
-		
-		stubFor(get(urlEqualTo(getAllOrder_URL))
-				.withHeader("Authorization", equalTo("Bearer foo"))
-				.willReturn(aResponse().withStatus(200)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody(ordersJson)));
-		
-		 ResponseEntity<Orders[]> resultOrders = testRestTemplate.getForEntity(getAllOrder_URL, Orders[].class);
-		 
-		 assertThat(resultOrders.getStatusCode()).isEqualTo(HttpStatus.OK);
-		 assertThat(Objects.requireNonNull(resultOrders.getBody()[0]).getOrder().equals(actualOrders.getOrder()));
+		when(orderService.getAllOrders()).thenReturn(lsOrders);
+		  mockMvc.perform(get("/order/findAllOrder")).andExpect(status().isOk())
+		.andExpect(jsonPath("$.size()").value(lsOrders.size()));
 		
 	}
 	
-
+	
 
 }
