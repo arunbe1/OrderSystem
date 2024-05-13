@@ -19,11 +19,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import com.order.orderservice.item.service.impl.ItemServiceImpl;
 import com.order.orderservice.models.Item;
-import com.order.orderservice.models.Order;
+import com.order.orderservice.models.Offers;
 import com.order.orderservice.models.Orders;
+import com.order.orderservice.offer.service.impl.OfferServiceImpl;
 import com.order.orderservice.order.service.impl.OrderServiceImpl;
 
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +45,9 @@ public class OrderController {
     
     @Autowired
     private OrderServiceImpl orderService;
+    
+    @Autowired
+    private OfferServiceImpl offerService;
     
     /*
      * Method to Add Item to the database
@@ -177,6 +182,47 @@ public class OrderController {
     		List<Orders> lsOrders = new ArrayList<>();
     		orders.forEach(lsOrders::add);
     		return ResponseEntity.ok(lsOrders.toArray());
+    	}catch(Exception e) {
+    		logger.error("Error while fetching all orders:{}", e.getMessage());
+    		return ResponseEntity.badRequest().build();
+    	}
+    }
+    
+    
+    @PostMapping("/addOffer")
+    public ResponseEntity<Offers> saveOffer(@RequestBody Offers offer, HttpServletRequest request, HttpServletResponse response) {
+    	
+    	try {
+    		Offers resultOffer = offerService.addOffer(offer);
+    		return ResponseEntity.ok(resultOffer);
+    		} catch(Exception e) {
+    			return ResponseEntity.badRequest().build();
+    		}
+    	
+    }
+    
+    @GetMapping("/findOfferById")
+    public ResponseEntity<Offers> getOfferById(@RequestParam("offerId") Integer offerId, HttpServletRequest request, HttpServletResponse response) {
+
+    	try {
+			return  ResponseEntity.ok(offerService.getOffer(offerId));
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			logger.error("Error while fetching order:{}", e.getMessage());
+			return ResponseEntity.badRequest().build();
+		}
+    }
+    
+    @GetMapping("/findAllOffer")
+    public ResponseEntity<Object[]> getAllOffer(HttpServletRequest request, HttpServletResponse response) {
+
+		
+    	logger.debug("Getting called in getAllOrders method:");
+    	try {
+    		Iterable<Offers> offers = offerService.getAlloffers();
+    		List<Offers> lsOffers = new ArrayList<>();
+    		offers.forEach(lsOffers::add);
+    		return ResponseEntity.ok(lsOffers.toArray());
     	}catch(Exception e) {
     		logger.error("Error while fetching all orders:{}", e.getMessage());
     		return ResponseEntity.badRequest().build();
